@@ -1,32 +1,50 @@
 <?php
-// api/disciplinas.php
+
+header("Access-Control-Allow-Origin: http://localhost"); 
+header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Headers: Content-Type");
 header("Access-Control-Allow-Methods: POST");
-header("Access-Control-Allow-Origin: *");
-header('Content-Type: application/json');
-require 'conexaobd.php'; // Inclua seu arquivo de conexão
 
-// Suponha que você tenha o ID do professor na sessão ou passe via GET/POST
-$professorId = 1; // Exemplo fixo, altere para buscar da sessão ou request
+require "conexaobd.php";
 
-// Query para buscar as disciplinas que o professor ensina
-$sql = "SELECT DISTINCT d.id_disciplina, d.nome_disciplina 
-FROM professor_leciona_turma AS plt 
-JOIN disciplina AS d ON plt.id_disciplina_fk = d.id_disciplina 
-WHERE plt.id_professor_fk = ?;
-";
-$stmt = $conexao->prepare($sql);
-$stmt->bind_param("i", $professorId);
-$stmt->execute();
-$result = $stmt->get_result();
-
-$disciplinas = [];
-while ($row = $result->fetch_assoc()) {
-    $disciplinas[] = $row;
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
 
-echo json_encode($disciplinas);
+if (isset($_SESSION['id_cliente'])) {
+    $id_cliente = $_SESSION['id_cliente'];
+    
+    try {
+        $consulta_disciplina = $connectbd->prepare("
+            SELECT DISTINCT d.id_disciplina, d.nome_disciplina 
+            FROM professor AS p
+            JOIN professor_leciona_turma AS plt ON p.id_professor = plt.id_professor_fk
+            JOIN disciplina AS d ON plt.id_disciplina_fk = d.id_disciplina
+            WHERE p.id_professor = ?
+        ");
+        
+        $consulta_disciplina->bindParam(1, $id_cliente);
+        $consulta_disciplina->execute();
+        $disciplina = $consulta_disciplina->fetchAll(PDO::FETCH_OBJ);
 
-// Fechar conexão
-$stmt->close();
+        if ($disciplina) {
+            echo json_encode($disciplina);
+        } else {
+            echo json_encode([
+                "status" => "error",
+                "message" => "Nenhuma disciplina encontrada para este professor."
+            ]);
+        }
+    } catch (Exception $e) {
+        echo json_encode([
+            "status" => "error",
+            "message" => "Erro ao consultar disciplinas: " . $e->getMessage()
+        ]);
+    }
+} else {
+    echo json_encode([
+        "status" => "error",
+        "message" => "Id do professor não encontrado ou sessão expirada."
+    ]);
+}
 ?>

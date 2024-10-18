@@ -1,0 +1,94 @@
+<?php 
+
+header("Access-Control-Allow-Origin: http://localhost"); // Domínio do frontend
+header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Allow-Headers: Content-Type");
+header("Access-Control-Allow-Methods: POST");
+
+require "conexaobd.php"; // Se tive algum error não executa mais nada no require
+
+$email_login = $_POST['login'];
+$senha_login = $_POST['senha'];
+
+if(!isset($_SESSION)) { // ou session_status() !== PHP_SESSION_ACTIVE
+    session_start([
+        'cookie_lifetime' => 24000, // 1 dia
+        'cookie_secure' => false,   // Para HTTPS, use true
+        'cookie_samesite' => 'Lax'  // Para requisições seguras, como de formulário ou fetch no mesmo site
+    ]);
+}
+
+//$email_login = "aluno@gmail.com";
+//$senha_login = "aluno123";
+
+/*
+prepare: faz inserção
+query: faz consulta
+*/
+//$consulta_sql = $connectbd->query("SELECT * FROM usuario");
+// usarei prepare pois permite a inserção de elementos depois da query
+
+$consulta_sql = $connectbd->prepare("SELECT id_usuario, email_usuario, senha_usuario, tipo_usuario FROM usuario WHERE email_usuario = ? AND senha_usuario = ?");
+$consulta_sql->bindParam(1, $email_login);
+$consulta_sql->bindParam(2, $senha_login);
+
+$consulta_sql->execute();
+$usuario = $consulta_sql->fetch(PDO::FETCH_OBJ);
+if($consulta_sql->rowCount() > 0) {
+    
+    /*$sql_cliente = $connectbd->prepare("SELECT ? FROM ? WHERE id_usuario_fk = ?");
+    $sql_cliente->bindParam(1, "id_" . $usuario->tipo_usuario);
+    $sql_cliente->bindParam(2, "" . $usuario->tipo_usuario);
+    $sql_cliente->bindParam(3, $usuario->id_usuario);
+    $cliente = $sql_cliente->fetch(PDO::FETCH_OBJ);*/
+    if($usuario->tipo_usuario == "aluno") {
+        $sql_cliente = $connectbd->prepare("SELECT id_aluno FROM aluno WHERE id_usuario_fk = ?");
+        $sql_cliente->bindParam(1, $usuario->id_usuario);
+        $sql_cliente->execute();
+        $cliente = $sql_cliente->fetch(PDO::FETCH_OBJ);
+        $_SESSION['id_cliente'] = $cliente->id_aluno;
+    } else if($usuario->tipo_usuario == "professor") {
+        $sql_cliente = $connectbd->prepare("SELECT id_professor FROM professor WHERE id_usuario_fk = ?");
+        $sql_cliente->bindParam(1, $usuario->id_usuario);
+        $sql_cliente->execute();
+        $cliente = $sql_cliente->fetch(PDO::FETCH_OBJ);
+        $_SESSION['id_cliente'] = $cliente->id_professor;
+    } else if($usuario->tipo_usuario == "coordenador") {
+        $sql_cliente = $connectbd->prepare("SELECT id_coordenador FROM coordenador WHERE id_usuario_fk = ?");
+        $sql_cliente->bindParam(1, $usuario->id_usuario);
+        $sql_cliente->execute();
+        $cliente = $sql_cliente->fetch(PDO::FETCH_OBJ);
+        $_SESSION['id_cliente'] = $cliente->id_coordenador;
+    } else if($usuario->tipo_usuario == "responsavel") {
+        $sql_cliente = $connectbd->prepare("SELECT id_responsavel FROM responsavel WHERE id_usuario_fk = ?");
+        $sql_cliente->bindParam(1, $usuario->id_usuario);
+        $sql_cliente->execute();
+        $cliente = $sql_cliente->fetch(PDO::FETCH_OBJ);
+        $_SESSION['id_cliente'] = $cliente->id_responsavel;
+    }
+    $_SESSION['id_usuario'] = $usuario->id_usuario;
+    $response = [
+        "status" => "success",
+        "tipo_usuario" => "dashboard_" . $usuario->tipo_usuario . ".html"
+    ];
+} else {
+    $response = [
+        "status" => "error",
+        "message" => 'Login ou sennha Incorretos'
+    ];
+}
+
+echo json_encode($response);
+//echo $usuario->id_usuario;
+/*echo "id_usuario: " . $_SESSION['id_usuario'];
+echo "<br> id_cliente: " . $_SESSION['id_cliente'];*/
+
+/* PDO::FETCH_OBJ transformar as linhas resultantes da consulta em um objeto $linha 
+e as colunas são seu atributos */
+/*while($usuario = $consulta_sql->fetch(PDO::FETCH_OBJ)) {
+    echo $usuario->nome_usuario . " - ";
+    echo $usuario->email_usuario . "<br>";
+}*/
+
+
+?>

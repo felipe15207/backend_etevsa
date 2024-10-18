@@ -1,62 +1,89 @@
-<?php
+<?php 
 
-include("conexaobd.php");
-
+header("Access-Control-Allow-Origin: http://localhost"); 
+header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Headers: Content-Type");
 header("Access-Control-Allow-Methods: POST");
-header("Access-Control-Allow-Origin: *");
 
+require "conexaobd.php"; 
 
-if(isset($_POST["login"]) && isset($_POST["senha"])) {
-    $email = $conexao->real_escape_string($_POST["login"]);
-    $senha = $conexao->real_escape_string($_POST["senha"]);
+$email_login = filter_input(INPUT_POST, 'login', FILTER_SANITIZE_EMAIL);
+$senha_login = filter_input(INPUT_POST, 'senha', FILTER_SANITIZE_STRING);
 
-    $busca_sql = "SELECT email_usuario, senha_usuario, tipo_usuario FROM usuario WHERE email_usuario = '$email' AND senha_usuario = '$senha'";
-    $resultado_busca = $conexao->query($busca_sql) or die("BUSCA FALHOU..." . $conexao->error);
-    $valida_usuario = $resultado_busca->num_rows; // passa a qtd de linhas se for 1 ele existe
-    if($valida_usuario == 1) {
+if(!isset($_SESSION)) {
+    session_start([
+        'cookie_lifetime' => 24000,
+        'cookie_secure' => false,
+        'cookie_samesite' => 'Lax'
+    ]);
+}
 
-        $usuario = $resultado_busca->fetch_assoc(); 
-        if(!isset($_SESSION)) {
-            session_start(); // inicia a sessão se ela não existe...
+try {
+    $consulta_sql = $connectbd->prepare("SELECT id_usuario, email_usuario, senha_usuario, tipo_usuario FROM usuario WHERE email_usuario = ?");
+    $consulta_sql->bindParam(1, $email_login);
+    $consulta_sql->execute();
+    $usuario = $consulta_sql->fetch(PDO::FETCH_OBJ);
+
+    // LEMBRA DE TIRA QUANDO O HASH DE SENHA ESTIVE IMPLEMENTADO!!!!!
+    if ($usuario && $usuario->senha_usuario === $senha_login) { // Verifica a senha antiga
+        // Re-hash a senha usando password_hash() e atualize no banco de dados
+        $senha_hash = password_hash($senha_login, PASSWORD_DEFAULT);
+        $update_sql = $connectbd->prepare("UPDATE usuario SET senha_usuario = ? WHERE id_usuario = ?");
+        $update_sql->bindParam(1, $senha_hash);
+        $update_sql->bindParam(2, $usuario->id_usuario);
+        $update_sql->execute();
+    
+        // Continua o processo de login
+        // Código para redirecionamento e sessão...
+    } else {
+        // Tentativa de login falhou
+        $response = [
+            "status" => "error",
+            "message" => 'Login ou senha incorretos.'
+        ];
+    }   
+    // LEMBRA DE TIRA QUANDO O HASH DE SENHA ESTIVE IMPLEMENTADO!!!!! 
+
+    if ($usuario && password_verify($senha_login, $usuario->senha_usuario)) {
+        switch ($usuario->tipo_usuario) {
+            case "aluno":
+                $sql_cliente = $connectbd->prepare("SELECT id_aluno FROM aluno WHERE id_usuario_fk = ?");
+                break;
+            case "professor":
+                $sql_cliente = $connectbd->prepare("SELECT id_professor FROM professor WHERE id_usuario_fk = ?");
+                break;
+            case "coordenador":
+                $sql_cliente = $connectbd->prepare("SELECT id_coordenador FROM coordenador WHERE id_usuario_fk = ?");
+                break;
+            case "responsavel":
+                $sql_cliente = $connectbd->prepare("SELECT id_responsavel FROM responsavel WHERE id_usuario_fk = ?");
+                break;
+            default:
+                throw new Exception('Tipo de usuário não reconhecido.');
         }
 
-        $_SESSION['usuario-logado'] = $usuario['email_usuario']; //sessao é uma variavel que vai continua valida mesmo quando o usuario troca de página ou periodo de tempo
-        
-        if($usuario['tipo_usuario'] =="coordenador") {
-            $response = [
-                "status" => "success",
-                "tipo_usuario" => "home-coordenador.html"
-            ];
-        } else if($usuario['tipo_usuario']== "professor") {
-            $response = [
-                "status" => "success",
-                "tipo_usuario" => "home-professor.html"
-            ];
-        } else if($usuario['tipo_usuario']== "aluno") {
-            $response = [
-                "status" => "success",
-                "tipo_usuario" => "home-aluno.html"
-            ];
-        }
+        $sql_cliente->bindParam(1, $usuario->id_usuario);
+        $sql_cliente->execute();
+        $cliente = $sql_cliente->fetch(PDO::FETCH_OBJ);
+        $_SESSION['id_cliente'] = $cliente->{'id_' . $usuario->tipo_usuario};
+        $_SESSION['id_usuario'] = $usuario->id_usuario;
 
-        echo json_encode($response);
-
+        $response = [
+            "status" => "success",
+            "tipo_usuario" => "dashboard_" . $usuario->tipo_usuario . ".html"
+        ];
     } else {
         $response = [
             "status" => "error",
-            "message" => "login ou senha incorretos!"
+            "message" => 'Login ou senha incorretos.'
         ];
-
-        echo json_encode($response);
     }
-} else {
+} catch (Exception $e) {
     $response = [
         "status" => "error",
-        "message" => "login e senha inexistente..."
+        "message" => "Erro ao processar a solicitação: " . $e->getMessage()
     ];
-
-    echo json_encode($response);
 }
 
+echo json_encode($response);
 ?>

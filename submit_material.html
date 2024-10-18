@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <style>
+        ul li {
+            display: inline;
+        }
+
+        ul li a {
+            color: #000;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="index.html">home</a></li>
+                <li><a href="login.html">login</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <h1>Professor</h1>
+    
+    <form id="material-form" enctype="multipart/form-data">
+        <!-- Etapa 1: Selecionar a disciplina -->
+        <div id="opdisciplina">
+            <h3>Selecione a disciplina</h3>
+            <select name="disciplinas" id="disciplinas">
+                <!-- As disciplinas serão inseridas aqui dinamicamente -->
+            </select>
+            <button type="button" id="btn-next-disciplinas">Avançar</button>
+        </div>
+    
+        <!-- Etapa 2: Selecionar as turmas -->
+        <div id="opturmas" style="display:none;">
+            <h3>Selecione as turmas</h3>
+            <div class="turmas" id="turmas-container">
+                <!-- As turmas serão inseridas aqui dinamicamente -->
+            </div>
+            <button type="button" id="btn-return-disciplinas">Voltar</button>
+            <button type="button" id="btn-next-turmas">Avançar</button>
+        </div>
+    
+        <!-- Etapa 3: Informar dados do material -->
+        <div id="materialdados" style="display:none;">
+            <h3>Nome material</h3>
+            <input type="text" name="nome_material" id="nome_material">
+            <h3>Descrição</h3>
+            <textarea name="descricao" id="descricao"></textarea>
+            <h3>Adicionar Arquivos</h3>
+            <button type="button" id="addarq">Adicionar arquivo</button><br>
+            <button type="button" id="removearq">Remover arquivo</button><br>
+            <div id="arquivo-container">
+                <!--<input type="text" name="nomearq[]" id=nomearq>-->
+                <!--<input type="file" name="arquivo[]" id="arquivo">-->
+            </div>
+            <button type="button" id="btn-return-turmas">Voltar</button>
+            <button type="submit" id="btn-submit">Enviar</button>
+        </div>
+    </form>
+
+    <script src="javascript/formmaterial.js"></script>
+
+</body>
+</html>
